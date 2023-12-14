@@ -131,6 +131,10 @@ fn get_time (elapsed: Duration) -> String {
 }
 
 
+
+
+
+
     
 
 fn main() -> Result<()> {
@@ -169,13 +173,16 @@ fn main() -> Result<()> {
             let files: Vec<String> = search_files(&extension)?;
             let elapsed = now.elapsed();
             println!("{} files found in {}", files.len(), get_time(elapsed));
-            let limit = limit.unwrap_or(30);
-            for file in files.iter().take(limit) {
-                println!("{}", file);
-            }
-            if files.len() > limit {
-                println!("+ {} more", files.len() - limit);
-            }
+            let limit = limit.unwrap_or(0);
+            if limit > 0 {
+                for file in files.iter().take(limit) {
+                    println!("{}", file);
+                }
+                if files.len() > limit {
+                    println!("+ {} more", files.len() - limit);
+                }
+                
+            } 
         },
         SubCommandType::Copy { dr, extension } => {
             // time the search
