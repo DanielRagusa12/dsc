@@ -1,16 +1,12 @@
 use std::env;
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use clap::{Parser, Subcommand};
-
-
 use rust_search::SearchBuilder;
 use anyhow::Result;
 use std::time::Duration;
 use log::LevelFilter;
 use nanoid::nanoid;
-
-
 
 
 #[derive(Debug, Parser)]
@@ -37,7 +33,7 @@ enum SubCommandType {
     Copy {
         /// Directory Reconstriuction
         #[clap(short, long)]
-        dr: bool,
+        reconstruct: bool,
         /// File extension to search for
         #[clap(short, long)]
         extension : String,
@@ -49,54 +45,54 @@ enum SubCommandType {
 
 
 
-
-
-fn copy_files (files: &Vec<String>, ext: &String, dscraped_path: &Path) -> Result<()> {
+fn copy_files(files: &Vec<String>, ext: &String, dscraped_path: &Path, reconstruct: &bool) -> Result<()> {
     let pb = indicatif::ProgressBar::new(files.len() as u64);
-    // create log file for copy operations
     let copy_log_file = dscraped_path.join("logs").join("copy.log");
     simple_logging::log_to_file(&copy_log_file, LevelFilter::Info)?;
-    
 
+    let ext_path = if *reconstruct {
+        dscraped_path.join("reconstructions").join(&ext)
+    } else {
+        dscraped_path.join("searches").join(&ext)
+    };
 
-    // create searches dir
-    let searches_path = dscraped_path.join("searches");
-    if !searches_path.exists() {
-        fs::create_dir_all(&searches_path)?;
-    }
-    
-    // check if extension folder exists in searches dir
-    let ext_path = searches_path.join(&ext);
-    if !ext_path.exists() {
+    fs::create_dir_all(&ext_path)?;
+
+    // clear the dir if it already exists
+    if ext_path.exists() {
+        fs::remove_dir_all(&ext_path)?;
         fs::create_dir_all(&ext_path)?;
     }
-    let mut error_count = 0;
 
+    let mut error_count = 0;
     for file in files {
         let file_path = Path::new(&file);
         let file_name = file_path.file_name().unwrap();
-        let mut dscraped_file_path = Path::new(&ext_path).join(file_name);
-        // check if file already exists in dscraped dir
-        //if so append a nanoid to the file name
-        if dscraped_file_path.exists() {
-            // append the nanoid before the extension
+        let mut dscraped_file_path = ext_path.join(file_name);
+
+        if *reconstruct {
+            let root_dir = env::current_dir()?;
+            let original_dir = file_path.parent().unwrap().strip_prefix(root_dir).unwrap();
+            let new_dir = ext_path.join(original_dir);
+            fs::create_dir_all(&new_dir)?;
+            dscraped_file_path = new_dir.join(file_name);
+        } else if dscraped_file_path.exists() {
             let file_name = file_name.to_str().unwrap().to_string();
             let ext_index = file_name.find(".").unwrap();
             let mut new_file_name = file_name.clone();
             new_file_name.insert_str(ext_index, &format!("-{}", nanoid!(5)));
-            dscraped_file_path = Path::new(&ext_path).join(new_file_name);
+            dscraped_file_path = ext_path.join(new_file_name);
         }
-        
+
         if let Err(err) = fs::copy(file_path, &dscraped_file_path) {
             log::error!("Error copying file: {:?}: {}", file_path ,err);
             error_count += 1;
         }
         pb.inc(1);
-        
     }
     pb.finish_and_clear();
     println!("{} out of {} files copied", files.len() - error_count, files.len());
-    println!("{} Errors occured check {} for details",error_count, copy_log_file.to_str().unwrap());
+
     Ok(())
 }
 
@@ -128,21 +124,14 @@ fn get_time (elapsed: Duration) -> String {
         let secs = elapsed.as_secs_f32();
         return format!("{:.2}s", secs);
     }
-}
-
-
-
-
-
-
-    
+} 
 
 fn main() -> Result<()> {
     
 
 
     let args = DriveScraperArgs::parse();
-    let current_dir = env::current_dir()?;
+    // let current_dir = env::current_dir()?;
 
     
     // *****************************************************
@@ -184,20 +173,26 @@ fn main() -> Result<()> {
                 
             } 
         },
-        SubCommandType::Copy { dr, extension } => {
+        SubCommandType::Copy { reconstruct, extension } => {
             // time the search
             let now = std::time::Instant::now();
             let files: Vec<String> = search_files(&extension)?;
             let elapsed = now.elapsed();
             println!("{} files found in {}", files.len(), get_time(elapsed));
-            copy_files(&files, &extension, &dscraped_path)?;
+            copy_files(&files, &extension, &dscraped_path, &reconstruct)?;
         }
         SubCommandType::Clear => {
             let searches_path = dscraped_path.join("searches");
+            let reconstructions_path = dscraped_path.join("reconstructions");
             if searches_path.exists() {
                 fs::remove_dir_all(&searches_path)?;
                 println!("Searches cleared");
-            } else {
+            }
+            if reconstructions_path.exists() {
+                fs::remove_dir_all(&reconstructions_path)?;
+                println!("Reconstructions cleared");
+            }
+            else {
                 println!("No searches to clear");
             }
         }
