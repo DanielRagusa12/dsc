@@ -1,7 +1,7 @@
 # dsc
 
 ## Overview
-dsc is a rust CLI program that can quickly search and copy files from any directory it is called from. The program can also copy and reconstruct the directory that it searches, placing the found files appropriately. The parallelized directory traversal is possible due to [Rust_Search](https://github.com/ParthJadhav/Rust_Search). The motivation behind this project was to quickly copy a bunch of poorly organized photos and videos on some of my old machines. 
+dsc is a rust CLI program that can quickly search and copy files from any directory it is called from. The program can also copy and reconstruct the directory that it searches, placing the found files appropriately. The parallelized directory traversal is possible due to [Rust_Search](https://github.com/ParthJadhav/Rust_Search). 
 
 
 ## Compilation
