@@ -79,5 +79,3 @@ dsc copy --reconstruct --extension pdf
 ```bash
 dsc clear
 ```
-
-Feel free to explore and modify the code according to your requirements. Happy coding!
